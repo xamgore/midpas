@@ -3,7 +3,7 @@ use nom_supreme::ParserExt;
 
 use crate::{chr, IResult, keyword};
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum UnOp {
   Not,
   Minus,

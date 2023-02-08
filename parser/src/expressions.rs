@@ -1,16 +1,16 @@
 use nom::branch::alt;
 use nom::combinator::{map, opt};
 use nom::multi::fold_many0;
-use nom::Parser;
 use nom::sequence::{delimited, pair};
+use nom::Parser;
 use nom_supreme::ParserExt;
 
-use crate::{chr, EntityId, fn_call, var_access};
-use crate::binary_operators::{BinOp, mul_operator, relative_operator, sum_operator};
-use crate::IResult;
-use crate::literals::{Lit, literal};
+use crate::binary_operators::{mul_operator, relative_operator, sum_operator, BinOp};
+use crate::literals::{literal, Lit};
 use crate::unary_operators::{minus, not, UnOp};
 use crate::whitespaces::*;
+use crate::IResult;
+use crate::{chr, fn_call, var_access, EntityId};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr<'a> {
@@ -41,14 +41,14 @@ pub fn expr(input: &str) -> IResult<&str, Expr> {
 }
 
 fn rel_expr(input: &str) -> IResult<&str, Expr> {
-  pair(sum_expr, opt(ms0(relative_operator).and(sum_expr))).map(wrap_binary_opt).parse(input)
+  pair(sum_expr, opt(relative_operator.and(sum_expr))).map(wrap_binary_opt).parse(input)
 }
 
 fn sum_expr(input: &str) -> IResult<&str, Expr> {
   let (input, base) = mul_expr(input)?;
 
   fold_many0(
-    ms0(sum_operator).and(mul_expr),
+    pair(sum_operator, mul_expr),
     move || base.clone(),
     |l, (op, r)| wrap_binary((l, op, r)),
   )(input)
@@ -58,7 +58,7 @@ fn mul_expr(input: &str) -> IResult<&str, Expr> {
   let (input, base) = not_expr(input)?;
 
   fold_many0(
-    ms0(mul_operator).and(not_expr),
+    pair(mul_operator, not_expr),
     move || base.clone(),
     |l, (op, r)| wrap_binary((l, op, r)),
   )(input)
@@ -73,12 +73,12 @@ fn neg_expr(input: &str) -> IResult<&str, Expr> {
 }
 
 fn value_expr(input: &str) -> IResult<&str, Expr> {
-  alt((
+  rms0(alt((
     map(literal, |lit| Expr::Literal { lit }),
     map(fn_call, |(id, args)| Expr::FnCall { id, args }),
     map(var_access, |ids| Expr::VarAccess { ids }),
-    delimited(chr('('), rms0(expr), chr(')')),
-  ))(input)
+    delimited(chr('('), expr, chr(')')),
+  )))(input)
 }
 
 fn wrap_unary((op, expr): (Option<UnOp>, Expr)) -> Expr {

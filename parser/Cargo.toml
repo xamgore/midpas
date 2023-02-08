@@ -11,3 +11,4 @@ nom = "7.1"
 nom-supreme = "0.8"
 anyhow = "1.0"
 derive_more = { version = "0.99.17", default-features = false, features = ["from"] }
+itertools = "0.10"

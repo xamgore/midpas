@@ -44,21 +44,7 @@ impl<'a> From<(&'a str, Option<&'a str>)> for EntityId<'a> {
 }
 
 // todo:
-// 2. pretty-printer (visitor)
-
-//
-
-// first idea: let's just make a recursive procedure, that will be calling itself
-// there will be a context with { spaces: 2 }
-// but these functions should be at AST nodes, so that must be a trait
-// and each of the nodes implements those traits
-// nah
-
-// the second idea (somewhere ~visitors)
-// there is a trait Visitor
-// there is a trait implementation
-// AST nodes have a method accept(visitor)
-// each AST node implements trait Visitor (means it can be traversed)
+// todo: consider renaming Def to DefSect
 
 // 3. better error reports
 // 5. add more samples

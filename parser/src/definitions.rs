@@ -14,10 +14,14 @@ use crate::whitespaces::*;
 #[derive(Debug, Clone, PartialEq)]
 pub enum Def<'a> {
   Vars(Vec<VarDef<'a>>),
-  Consts(Vec<(&'a str, Lit<'a>)>),
+  Consts(Vec<ConstDef<'a>>),
   Fn(FnDef<'a>),
-  Types(Vec<(&'a str, Type<'a>)>),
+  Types(Vec<TypeDef<'a>>),
 }
+
+pub type ConstDef<'a> = (&'a str, Lit<'a>);
+
+pub type TypeDef<'a> = (&'a str, Type<'a>);
 
 pub fn definition(input: &str) -> IResult<&str, Def> {
   alt((const_def, var_def, type_def, fn_def.map(Def::Fn)))(input)

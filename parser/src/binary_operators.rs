@@ -4,7 +4,7 @@ use nom::combinator::value;
 use crate::{chr, IResult, keyword, tag};
 use crate::whitespaces::*;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum BinOp {
   Less,
   LessEq,
@@ -38,16 +38,16 @@ pub fn relative_operator(input: &str) -> IResult<&str, BinOp> {
 }
 
 pub fn sum_operator(input: &str) -> IResult<&str, BinOp> {
-  alt((
+  rms0(alt((
     value(BinOp::Plus, chr('+')),
     value(BinOp::Minus, chr('-')),
     value(BinOp::Or, keyword("or")),
     value(BinOp::Xor, keyword("xor")),
-  ))(input)
+  )))(input)
 }
 
 pub fn mul_operator(input: &str) -> IResult<&str, BinOp> {
-  alt((
+  rms0(alt((
     value(BinOp::Mul, chr('*')),
     value(BinOp::Div, chr('/')),
     value(BinOp::IntDiv, keyword("div")),
@@ -56,5 +56,5 @@ pub fn mul_operator(input: &str) -> IResult<&str, BinOp> {
     value(BinOp::UShiftRight, keyword("ushr")),
     value(BinOp::ShiftRight, keyword("shr")),
     value(BinOp::ShiftLeft, keyword("shl")),
-  ))(input)
+  )))(input)
 }

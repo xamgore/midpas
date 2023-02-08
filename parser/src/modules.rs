@@ -1,4 +1,5 @@
 use derive_more::From;
+use nom::branch::alt;
 use nom::combinator::rest;
 use nom::multi::{fold_many0, many0};
 use nom::sequence::{delimited, tuple};
@@ -8,47 +9,62 @@ use nom_supreme::ParserExt;
 
 use crate::definitions::{definition, Def};
 use crate::statements::{begin_end_stmt, Stmt};
+use crate::whitespaces::multispace0;
 use crate::{chr, identifier, keyword, IResult};
 
 #[derive(Debug, Clone, From, PartialEq)]
 pub enum Module<'a> {
-  Program {
-    name: &'a str,
-    imports: Vec<&'a str>,
-    definitions: Vec<Def<'a>>,
-    body: Stmt<'a>,
-  },
-  Unit {
-    name: &'a str,
-    interface: (Vec<&'a str>, Vec<Def<'a>>),
-    implementation: (Vec<&'a str>, Vec<Def<'a>>),
-    // initialization: Stmt<'a>, // todo?
-  },
+  Program(Program<'a>),
+  Unit(Unit<'a>),
 }
 
-pub fn unit(input: &str) -> IResult<&str, Module> {
+#[derive(Debug, Clone, From, PartialEq)]
+pub struct Program<'a> {
+  pub name: &'a str,
+  pub impl_sect: Section<'a>,
+  pub body: Stmt<'a>,
+}
+
+#[derive(Debug, Clone, From, PartialEq)]
+pub struct Unit<'a> {
+  pub name: &'a str,
+  pub intf_section: Section<'a>,
+  pub impl_sect: Section<'a>,
+  // pub initialization: Stmt<'a>, // todo?
+}
+
+#[derive(Debug, Clone, From, PartialEq)]
+pub struct Section<'a> {
+  pub imports: Vec<&'a str>,
+  pub definitions: Vec<Def<'a>>,
+}
+
+pub fn module(input: &str) -> IResult<&str, Module> {
+  multispace0.precedes(alt((program.map(Module::from), unit.map(Module::from)))).parse(input)
+}
+
+pub fn unit(input: &str) -> IResult<&str, Unit> {
   tuple((
     delimited(keyword("unit"), identifier, chr(';')),
-    keyword("interface").precedes(imports.and(many0(definition))),
+    keyword("interface").precedes(imports.and(many0(definition)).map(Section::from)),
     delimited(
       keyword("implementation"),
-      imports.and(many0(definition)),
+      imports.and(many0(definition)).map(Section::from),
       keyword("end").terminated(chr('.')).terminated(rest),
     ),
   ))
-  .map(Module::from)
+  .map(Unit::from)
   .parse(input)
 }
 
-pub fn program(input: &str) -> IResult<&str, Module> {
+pub fn program(input: &str) -> IResult<&str, Program> {
   tuple((
     delimited(keyword("program"), identifier, chr(';')),
-    imports,
-    many0(definition),
+    imports.and(many0(definition)).map(Section::from),
     // ignore everything after end.
     begin_end_stmt.terminated(chr('.')).terminated(rest),
   ))
-  .map(Module::from)
+  .map(Program::from)
   .parse(input)
 }
 

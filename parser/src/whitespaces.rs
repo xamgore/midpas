@@ -22,7 +22,7 @@ fn multi_line_comment<'a, E: ParseError<&'a str>>(input: &'a str) -> nom::IResul
   )(input)
 }
 
-fn multispace0<'a, E: ParseError<&'a str>>(input: &'a str) -> nom::IResult<&'a str, (), E> {
+pub fn multispace0<'a, E: ParseError<&'a str>>(input: &'a str) -> nom::IResult<&'a str, (), E> {
   value(
     (),
     many0_count(alt((
@@ -43,29 +43,6 @@ pub fn rms0<'a, O, E: ParseError<&'a str>, P>(
     let (input, o1) = parser.parse(input)?;
     multispace0(input).map(|(i, _)| (i, o1))
   }
-}
-
-#[deprecated]
-pub fn lms0<'a, O, E: ParseError<&'a str>, P>(
-  mut parser: P,
-) -> impl FnMut(&'a str) -> nom::IResult<&'a str, O, E>
-  where
-    P: Parser<&'a str, O, E>,
-{
-  move |input: &str| {
-    let (input, _) = multispace0(input)?;
-    parser.parse(input)
-  }
-}
-
-#[deprecated]
-pub fn ms0<'a, O, E: ParseError<&'a str>, P>(
-  parser: P,
-) -> impl FnMut(&'a str) -> nom::IResult<&'a str, O, E>
-  where
-    P: Parser<&'a str, O, E>,
-{
-  rms0(lms0(parser))
 }
 
 #[cfg(test)]

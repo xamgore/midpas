@@ -7,6 +7,9 @@ use crate::modules::{Module, Program, Section, Unit};
 use crate::statements::Stmt;
 use crate::types::{ConstVal, Segment, Type, VarDef};
 
+// https://rust-unofficial.github.io/patterns/patterns/behavioural/visitor.html
+// https://michael-f-bryan.github.io/calc/book/html/parse/visit.html
+
 #[allow(unused_variables)]
 pub trait Visit<'ast> {
   fn visit_module(&mut self, i: &'ast Module) {

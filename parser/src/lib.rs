@@ -1,12 +1,12 @@
+use nom::{Compare, CompareResult, Parser};
 use nom::branch::alt;
 use nom::character::complete::{alpha1, alphanumeric1};
 use nom::combinator::{opt, recognize};
 use nom::multi::{many0_count, separated_list1};
 use nom::sequence::pair;
-use nom::{Compare, CompareResult, Parser};
 use nom_supreme::multi::collect_separated_terminated;
-pub use nom_supreme::tag::complete::tag;
 use nom_supreme::ParserExt;
+pub use nom_supreme::tag::complete::tag;
 
 use expressions::Expr;
 use whitespaces::*;
@@ -25,8 +25,8 @@ mod prettier;
 mod statements;
 mod types;
 mod unary_operators;
-mod whitespaces;
 mod visitor;
+mod whitespaces;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum EntityId<'a> {
@@ -46,13 +46,11 @@ impl<'a> From<(&'a str, Option<&'a str>)> for EntityId<'a> {
 // todo:
 // todo: consider renaming Def to DefSect
 
-// 3. better error reports
-// 5. add more samples
-
-// 6. replace whitespaces with rms0
-// 8. type-checking
-
-// 9. switch-case operator
+// 0. dynamic pascal interpretation + loading of all the modules together
+// 1. type-checking = infer types + have a symbol table
+// 2. web assembly
+// 3. add more samples
+// 4. switch-case operator
 
 // notes:
 // - type_section has an extra check for being part of impl or interface section

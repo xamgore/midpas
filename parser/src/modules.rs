@@ -2,15 +2,15 @@ use derive_more::From;
 use nom::branch::alt;
 use nom::combinator::rest;
 use nom::multi::{fold_many0, many0};
-use nom::sequence::{delimited, tuple};
 use nom::Parser;
+use nom::sequence::{delimited, tuple};
 use nom_supreme::multi::collect_separated_terminated;
 use nom_supreme::ParserExt;
 
-use crate::definitions::{definition, Def};
+use crate::{chr, identifier, IResult, keyword};
+use crate::definitions::{Def, definition};
 use crate::statements::{begin_end_stmt, Stmt};
 use crate::whitespaces::multispace0;
-use crate::{chr, identifier, keyword, IResult};
 
 #[derive(Debug, Clone, From, PartialEq)]
 pub enum Module<'a> {
@@ -53,8 +53,8 @@ pub fn unit(input: &str) -> IResult<&str, Unit> {
       keyword("end").terminated(chr('.')).terminated(rest),
     ),
   ))
-  .map(Unit::from)
-  .parse(input)
+    .map(Unit::from)
+    .parse(input)
 }
 
 pub fn program(input: &str) -> IResult<&str, Program> {
@@ -64,8 +64,8 @@ pub fn program(input: &str) -> IResult<&str, Program> {
     // ignore everything after end.
     begin_end_stmt.terminated(chr('.')).terminated(rest),
   ))
-  .map(Program::from)
-  .parse(input)
+    .map(Program::from)
+    .parse(input)
 }
 
 fn imports(input: &str) -> IResult<&str, Vec<&str>> {
@@ -75,7 +75,7 @@ fn imports(input: &str) -> IResult<&str, Vec<&str>> {
     acc.extend(items);
     acc
   })
-  .parse(input)
+    .parse(input)
 }
 
 #[cfg(test)]

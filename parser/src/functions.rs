@@ -1,16 +1,16 @@
 use derive_more::From;
 use nom::branch::alt;
 use nom::combinator::success;
-use nom::sequence::{pair, tuple};
 use nom::Parser;
+use nom::sequence::{pair, tuple};
 use nom_supreme::multi::collect_separated_terminated;
 use nom_supreme::ParserExt;
 
-use crate::definitions::{var_def, Def};
+use crate::{chr, identifier, IResult, keyword};
+use crate::definitions::{Def, var_def};
 use crate::statements::{begin_end_stmt, Stmt};
-use crate::types::{type_expr, NamedType, Type, VarDef, VOID};
+use crate::types::{NamedType, Type, type_expr, VarDef, VOID};
 use crate::whitespaces::rms0;
-use crate::{chr, identifier, keyword, IResult};
 
 #[derive(Debug, From, Clone, PartialEq)]
 pub struct FnDef<'a> {
@@ -37,8 +37,8 @@ pub fn fn_def(input: &str) -> IResult<&str, FnDef> {
       rms0(begin_end_stmt).terminated(chr(';')).opt(),
     )),
   ))
-  .map(FnDef::from)
-  .parse(input)
+    .map(FnDef::from)
+    .parse(input)
 }
 
 // > empty

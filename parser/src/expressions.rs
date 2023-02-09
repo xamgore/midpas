@@ -1,16 +1,16 @@
 use nom::branch::alt;
 use nom::combinator::{map, opt};
 use nom::multi::fold_many0;
-use nom::sequence::{delimited, pair};
 use nom::Parser;
+use nom::sequence::{delimited, pair};
 use nom_supreme::ParserExt;
 
-use crate::binary_operators::{mul_operator, relative_operator, sum_operator, BinOp};
-use crate::literals::{literal, Lit};
+use crate::{chr, EntityId, fn_call, var_access};
+use crate::binary_operators::{BinOp, mul_operator, relative_operator, sum_operator};
+use crate::IResult;
+use crate::literals::{Lit, literal};
 use crate::unary_operators::{minus, not, UnOp};
 use crate::whitespaces::*;
-use crate::IResult;
-use crate::{chr, fn_call, var_access, EntityId};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr<'a> {

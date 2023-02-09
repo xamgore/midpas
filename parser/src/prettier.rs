@@ -2,6 +2,7 @@ use itertools::Itertools;
 
 use crate::binary_operators::BinOp;
 use crate::definitions::{ConstDef, Def, TypeDef};
+use crate::EntityId;
 use crate::expressions::Expr;
 use crate::literals::Lit;
 use crate::modules::{Module, Section};
@@ -9,10 +10,9 @@ use crate::statements::Stmt;
 use crate::types::{RecordType, Segment, Type, VarDef, VOID};
 use crate::unary_operators::UnOp;
 use crate::visitor::{
-  walk_const_def, walk_definition, walk_impl_section, walk_intf_section, walk_module,
-  walk_type_def, walk_var_def, Visit,
+  Visit, walk_const_def, walk_definition, walk_impl_section, walk_intf_section,
+  walk_module, walk_type_def, walk_var_def,
 };
-use crate::EntityId;
 
 #[derive(Default)]
 pub struct Prettier {

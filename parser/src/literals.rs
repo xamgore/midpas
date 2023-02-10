@@ -2,12 +2,12 @@ use nom::branch::alt;
 use nom::bytes::complete::take_until;
 use nom::character::complete::{alphanumeric1, digit1, i64 as parse_i64, u32 as parse_u32};
 use nom::combinator::{map, map_opt, map_res, value};
-use nom::Parser;
 use nom::sequence::{delimited, preceded};
+use nom::Parser;
 use nom_supreme::ParserExt;
 
-use crate::{chr, IResult, keyword};
 use crate::whitespaces::rms0;
+use crate::{chr, keyword, IResult};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Lit<'a> {
@@ -57,8 +57,8 @@ pub fn char_lit(input: &str) -> IResult<&str, Lit> {
 pub fn string_lit(input: &str) -> IResult<&str, Lit> {
   map(
     alt((
-      delimited(chr('\''), take_until("\'"), chr('\'')),
-      delimited(chr('\"'), take_until("\""), chr('\"')),
+      delimited(nom::character::complete::char('\''), take_until("\'"), chr('\'')),
+      delimited(nom::character::complete::char('\"'), take_until("\""), chr('\"')),
     )),
     Lit::Str,
   )(input)
@@ -68,7 +68,7 @@ pub fn string_lit(input: &str) -> IResult<&str, Lit> {
 mod tests {
   use super::*;
 
-// todo: chat_lit
+  // todo: chat_lit
 
   #[test]
   fn parse_hex_integer() {

@@ -1,32 +1,49 @@
-use nom::{Compare, CompareResult, Parser};
 use nom::branch::alt;
 use nom::character::complete::{alpha1, alphanumeric1};
-use nom::combinator::{opt, recognize};
+use nom::combinator::{all_consuming, opt, recognize};
 use nom::multi::{many0_count, separated_list1};
 use nom::sequence::pair;
+use nom::{Compare, CompareResult, Parser};
 use nom_supreme::multi::collect_separated_terminated;
-use nom_supreme::ParserExt;
 pub use nom_supreme::tag::complete::tag;
+use nom_supreme::ParserExt;
 
 use expressions::Expr;
 use whitespaces::*;
 
 use crate::expressions::expr;
+pub use crate::modules::Module;
 
 pub type IResult<I, O, E = nom_supreme::error::ErrorTree<I>> = Result<(I, O), nom::Err<E>>;
 
-mod binary_operators;
-mod definitions;
-mod expressions;
-mod functions;
-mod literals;
-mod modules;
-mod prettier;
-mod statements;
-mod types;
-mod unary_operators;
-mod visitor;
+pub mod binary_operators;
+pub mod definitions;
+pub mod expressions;
+pub mod functions;
+pub mod literals;
+pub mod modules;
+pub mod prettier;
+pub mod statements;
+pub mod types;
+pub mod unary_operators;
+pub mod visitor;
 mod whitespaces;
+
+pub fn parse(source: &str) -> Module {
+  all_consuming(modules::module)(source).map(|(_, m)| m).unwrap()
+}
+
+// todo: implement expressions interpreter
+
+// todo: move some of these definitions to another file
+//       so that we could clean it for the future code
+//       (parsing the whole file tree)
+
+// todo: write a visitor that extracts imports from AST
+//       these imports then used for loading another files
+//       with following parsing
+//       caution: keep a set of visited modules
+//       a simpler way -> just import all files :)
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum EntityId<'a> {

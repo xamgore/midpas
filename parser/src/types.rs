@@ -71,6 +71,12 @@ pub enum Type<'a> {
   Record(RecordType<'a>),
 }
 
+impl<'a> Type<'a> {
+  pub fn is_void(&self) -> bool {
+    dbg!(matches!(self, Type::Named(NamedType::Internal { id: VOID })))
+  }
+}
+
 pub fn type_expr(input: &str) -> IResult<&str, Type> {
   rms0(alt((
     range_type.map(Type::Range),

@@ -16,6 +16,10 @@ pub trait Visit<'ast> {
     walk_module(self, i);
   }
 
+  fn visit_unit_name(&mut self, name: &'ast str) {
+    // empty
+  }
+
   fn visit_intf_sect(&mut self, sect: &'ast Section) {
     walk_intf_section(self, sect);
   }
@@ -32,20 +36,20 @@ pub trait Visit<'ast> {
     walk_definition(self, def_sect);
   }
 
-  fn visit_var_def(&mut self, var_def: &'ast VarDef) {
-    walk_var_def(self, var_def);
+  fn visit_var_def(&mut self, def: &'ast VarDef) {
+    walk_var_def(self, def);
   }
 
-  fn visit_const_def(&mut self, const_def: &'ast ConstDef) {
-    walk_const_def(self, const_def);
+  fn visit_const_def(&mut self, def: &'ast ConstDef) {
+    walk_const_def(self, def);
   }
 
-  fn visit_type_def(&mut self, type_def: &'ast TypeDef) {
-    walk_type_def(self, type_def);
+  fn visit_type_def(&mut self, def: &'ast TypeDef) {
+    walk_type_def(self, def);
   }
 
-  fn visit_fn_definition(&mut self, fn_def: &'ast FnDef) {
-    todo!()
+  fn visit_fn_definition(&mut self, def: &'ast FnDef) {
+    walk_fn_def(self, def)
   }
 
   fn visit_stmt(&mut self, stmt: &'ast Stmt) {
@@ -79,11 +83,13 @@ pub trait Visit<'ast> {
 
 pub fn walk_module<'ast, V: Visit<'ast> + ?Sized>(v: &mut V, m: &'ast Module) {
   match *m {
-    Module::Program(Program { name: _name, ref impl_sect, ref body }) => {
+    Module::Program(Program { name, ref impl_sect, ref body }) => {
+      v.visit_unit_name(name);
       v.visit_impl_sect(impl_sect);
       v.visit_stmt(body);
     }
-    Module::Unit(Unit { name: _name, ref intf_section, ref impl_sect }) => {
+    Module::Unit(Unit { name, ref intf_section, ref impl_sect }) => {
+      v.visit_unit_name(name);
       v.visit_intf_sect(intf_section);
       v.visit_impl_sect(impl_sect);
       // todo: v.visit_statement(init_stmt);
@@ -120,16 +126,7 @@ pub fn walk_definition<'ast, V: Visit<'ast> + ?Sized>(v: &mut V, d: &'ast Def) {
       }
     }
     Def::Fn(ref func) => {
-      for it in &func.args {
-        v.visit_var_def(it);
-      }
-      v.visit_type(&func.result);
-      if let Some(locals) = func.locals.as_ref() {
-        v.visit_definition(locals);
-      }
-      if let Some(code) = func.code.as_ref() {
-        v.visit_stmt(code);
-      }
+      v.visit_fn_definition(func);
     }
     Def::Types(ref list) => {
       for it in list {
@@ -271,4 +268,17 @@ pub fn walk_const_def<'ast, V: Visit<'ast> + ?Sized>(v: &mut V, node: &'ast Cons
 
 pub fn walk_type_def<'ast, V: Visit<'ast> + ?Sized>(v: &mut V, node: &'ast TypeDef) {
   v.visit_type(&node.1);
+}
+
+pub fn walk_fn_def<'ast, V: Visit<'ast> + ?Sized>(v: &mut V, func: &'ast FnDef) {
+  for it in &func.args {
+    v.visit_var_def(it);
+  }
+  v.visit_type(&func.result);
+  if let Some(locals) = func.locals.as_ref() {
+    v.visit_definition(locals);
+  }
+  if let Some(code) = func.code.as_ref() {
+    v.visit_stmt(code);
+  }
 }

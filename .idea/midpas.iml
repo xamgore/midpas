@@ -5,6 +5,7 @@
       <sourceFolder url="file://$MODULE_DIR$/parser/examples" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/parser/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/interpreter/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/translator/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />

@@ -45,7 +45,7 @@ pub fn parse(source: &str) -> Module {
 //       caution: keep a set of visited modules
 //       a simpler way -> just import all files :)
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum EntityId<'a> {
   Internal { id: &'a str },
   External { id: &'a str, unit: &'a str },
@@ -101,9 +101,10 @@ pub fn entity_id(input: &str) -> IResult<&str, EntityId> {
 }
 
 pub fn fn_call(input: &str) -> IResult<&str, (EntityId, Vec<Expr>)> {
-  entity_id
-    .and(chr('(').precedes(collect_separated_terminated(rms0(expr), chr(','), chr(')'))))
-    .parse(input)
+  entity_id.and(chr('(').precedes(
+    collect_separated_terminated(rms0(expr), chr(','), chr(')'))
+      .or(chr(')').value(Vec::new()))
+  )).parse(input)
 }
 
 pub fn var_access(input: &str) -> IResult<&str, Vec<(EntityId, Option<Vec<Expr>>)>> {

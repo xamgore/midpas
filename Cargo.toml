@@ -4,5 +4,6 @@
 
 members = [
     "parser",
-    "interpreter"
+    "interpreter",
+    "translator",
 ]

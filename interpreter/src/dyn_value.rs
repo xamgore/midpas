@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use parser::literals::Lit;
 
 #[allow(dead_code)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum DynValue<'a> {
   Int(i64),
   Bool(bool),
@@ -41,6 +41,10 @@ impl<'a> ToString for DynValue<'a> {
 }
 
 impl<'a> DynValue<'a> {
+  pub fn is_void(&self) -> bool {
+    matches!(self, DynValue::Void)
+  }
+
   pub fn type_name(&self) -> &str {
     use crate::DynValue::Void;
     use DynValue::*;

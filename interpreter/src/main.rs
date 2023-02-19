@@ -1,76 +1,197 @@
-mod dyn_value;
-
 use std::collections::HashMap;
+use std::iter::repeat;
 use std::ops::Not;
-use dyn_value::DynValue;
 
+use dyn_value::DynValue;
+use parser::{EntityId, parse};
 use parser::binary_operators::BinOp;
-use parser::definitions::Def;
 use parser::expressions::Expr;
+use parser::functions::FnDef;
 use parser::statements::Stmt;
-use parser::types::{NamedType, Type};
+use parser::types::{NamedType, Type, VarDef};
 use parser::unary_operators::UnOp;
 use parser::visitor::Visit;
-use parser::{EntityId, parse};
+
+mod dyn_value;
+mod stdlib;
 
 // Interpreter is written in the most ineffective way possible
 
-#[derive(Default)]
-pub struct Interpreter<'a> {
-  stack: Vec<DynValue<'a>>,
-  broken: bool,
+pub type Scope<'a> = HashMap<&'a str, DynValue<'a>>;
 
-  // todo: variables
-  //  simple case: just make a dict: name -> DynValue
-  vars: HashMap<&'a str, DynValue<'a>>,
+#[derive(Debug, Default)]
+pub struct Unit<'a> {
+  vars: Scope<'a>,
+  funcs: HashMap<&'a str, &'a FnDef<'a>>,
+}
+
+#[derive(Debug, Default)]
+pub struct Interpreter<'a> {
+  units: HashMap<&'a str, Unit<'a>>,
+  scopes: Vec<Scope<'a>>,
+  stack: Vec<DynValue<'a>>,
+  broken_loop: bool,
+  current_unit: &'a str,
 }
 
 impl<'a> Interpreter<'a> {
+  pub fn call_fn(&mut self, id: &'a EntityId, args: &'a Vec<Expr>) {
+    // internal function
+    if let Some(fun) = stdlib::STDLIB.get(&id) {
+      let stack_size = self.stack.len();
+      for expr in args {
+        self.visit_expr(expr);
+      }
+      let computed_args = &self.stack[stack_size..];
+      let _result: DynValue = fun(computed_args);
+      self.stack.truncate(stack_size);
+      self.stack.push(_result);
+      return;
+    }
+
+    // user defined function
+    let func = self.find_function(id);
+
+    // check arity
+    let arity: usize = func.args.iter().map(|it| it.vars.len()).sum();
+    if args.len() != arity {
+      panic!("Can't call {}, expected {} arguments, got {}!", func.id, func.args.len(), args.len());
+    }
+
+    // put computed arguments on stack
+    for expr in args.iter().rev() {
+      self.visit_expr(expr);
+    }
+
+    // create a scope with variables
+    let return_val = self.infer_default_value(&func.result);
+    self.scopes.push(Scope::from_iter([(func.id, return_val)]));
+
+    for it in &func.args {
+      self.visit_var_def(it); // dyn value
+    }
+    if let Some(locals) = func.locals.as_ref() {
+      self.visit_definition(locals);
+    }
+
+    // bind factual arguments
+    let def_args =
+      func.args.iter().flat_map(|def| def.vars.iter().zip(repeat(&def.of)));
+
+    for (name, _type) in def_args {
+      let value = self.stack.pop().unwrap();
+      let var = self.scopes.last_mut().unwrap().get_mut(name).unwrap();
+
+      if value.is_assignable(var) {
+        *var = value;
+      } else {
+        panic!("type {} can't be assigned to {}", value.type_name(), var.type_name());
+      }
+    }
+
+    // call the function
+    self.visit_stmt(func.code.as_ref().expect("Expected function body"));
+
+    // return result on stack
+    let res = self.scopes.last_mut().unwrap().remove(func.id).unwrap();
+    self.stack.push(res);
+
+    self.scopes.pop();
+  }
+
   fn pop(&mut self) -> DynValue<'a> {
     self.stack.pop().unwrap()
+  }
+
+  fn unit_mut(&mut self) -> &mut Unit<'a> {
+    self.units.entry(self.current_unit).or_insert_with(Unit::default)
+  }
+
+  fn find_variable(&mut self, name: &'a EntityId) -> &mut DynValue<'a> {
+    match name {
+      EntityId::Internal { id } => {
+        self
+          .scopes
+          .iter_mut()
+          .rev()
+          .take(1)
+          .find_map(|sc| sc.get_mut(id))
+          .or_else(|| self.units.get_mut(self.current_unit).unwrap().vars.get_mut(id))
+          .expect(format!("Variable {id} is not defined").as_str())
+      }
+      EntityId::External { id, unit } =>
+        self
+          .units
+          .get_mut(unit)
+          .expect(format!("Unit {unit} not found").as_str())
+          .vars
+          .get_mut(id)
+          .expect(format!("Variable {id} is not defined").as_str()),
+    }
+  }
+
+  fn find_function(&mut self, name: &'a EntityId) -> &'a FnDef<'a> {
+    match name {
+      EntityId::Internal { id } =>
+        self.unit_mut().funcs.get(id).expect(format!("Function {id} is not defined").as_str()),
+      EntityId::External { id, unit } =>
+        self.units.get(unit)
+          .expect(format!("Unit {unit} not found").as_str())
+          .funcs.get(id).expect(format!("Function {id} is not defined").as_str()),
+    }
+  }
+
+  fn infer_default_value(&mut self, r#type: &'a Type) -> DynValue<'a> {
+    match r#type {
+      Type::Named(ref id) => match *id {
+        NamedType::External { .. } => {
+          panic!("Can't redefine external unit variable");
+        }
+        NamedType::Internal { id } => match id {
+          "string" => DynValue::Str(String::new()),
+          "integer" => DynValue::Int(0),
+          "real" => DynValue::Float(0.0),
+          "bool" => DynValue::Bool(false),
+          "void" => DynValue::Void,
+          _ => panic!(),
+        },
+      },
+      Type::Range(_) => {
+        panic!()
+      }
+      Type::File(_) => {
+        panic!()
+      }
+      Type::Array(_) => {
+        panic!()
+      }
+      Type::Record(_) => {
+        panic!()
+      }
+    }
   }
 }
 
 impl<'a> Visit<'a> for Interpreter<'a> {
-  fn visit_definition(&mut self, def_sect: &'a Def) {
-    match *def_sect {
-      Def::Vars(ref list) => {
-        for def in list {
-          let template = match def.of {
-            Type::Named(ref id) => match *id {
-              NamedType::External { .. } => {
-                panic!()
-              }
-              NamedType::Internal { id } => match id {
-                "string" => DynValue::Str(String::new()),
-                "integer" => DynValue::Int(0),
-                "real" => DynValue::Float(0.0),
-                "bool" => DynValue::Bool(false),
-                _ => panic!(),
-              },
-            },
-            Type::Range(_) => {
-              panic!()
-            }
-            Type::File(_) => {
-              panic!()
-            }
-            Type::Array(_) => {
-              panic!()
-            }
-            Type::Record(_) => {
-              panic!()
-            }
-          };
-          for &var in def.vars.iter() {
-            self.vars.insert(var, template.clone());
-          }
-        }
-      }
-      Def::Consts(_) => {}
-      Def::Fn(_) => {}
-      Def::Types(_) => {}
+  fn visit_unit_name(&mut self, name: &'a str) {
+    self.current_unit = name;
+  }
+
+  fn visit_var_def(&mut self, def: &'a VarDef) {
+    let template = self.infer_default_value(&def.of);
+    for &var in def.vars.iter() {
+      let scope = if let Some(scope) = self.scopes.last_mut() {
+        scope
+      } else {
+        &mut self.unit_mut().vars
+      };
+
+      scope.insert(var, template.clone());
     }
+  }
+
+  fn visit_fn_definition(&mut self, def: &'a FnDef) {
+    self.unit_mut().funcs.insert(def.id, def);
   }
 
   fn visit_stmt(&mut self, stmt: &'a Stmt) {
@@ -78,7 +199,7 @@ impl<'a> Visit<'a> for Interpreter<'a> {
       Stmt::Block { ref list } => {
         for it in list {
           self.visit_stmt(it);
-          if self.broken {
+          if self.broken_loop {
             return;
           }
         }
@@ -105,8 +226,8 @@ impl<'a> Visit<'a> for Interpreter<'a> {
         }
 
         self.visit_stmt(body);
-        if self.broken {
-          self.broken = false;
+        if self.broken_loop {
+          self.broken_loop = false;
           return;
         }
       },
@@ -114,8 +235,8 @@ impl<'a> Visit<'a> for Interpreter<'a> {
         for it in body {
           self.visit_stmt(it);
 
-          if self.broken {
-            self.broken = false;
+          if self.broken_loop {
+            self.broken_loop = false;
             return;
           }
         }
@@ -130,47 +251,35 @@ impl<'a> Visit<'a> for Interpreter<'a> {
         }
       },
       Stmt::For { .. } => {
-        if self.broken {
-          self.broken = false;
+        //  - there is a scope in `for` statement (ignore)
+
+        if self.broken_loop {
+          self.broken_loop = false;
           return;
         }
         todo!()
       }
       Stmt::FnCall { ref id, ref args } => {
-        assert_eq!(*id, EntityId::Internal { id: "writeln" });
-        for arg in args {
-          self.visit_expr(arg);
-          let val = self.stack.pop().unwrap();
-          print!("{}", val.to_string());
-        }
-        println!();
+        self.call_fn(id, args);
+        self.stack.pop(); // pop return value
       }
       Stmt::Assign { ref ids, ref expr } => {
-        if ids.len() == 1 {
-          if let EntityId::Internal { id } = ids[0].0 {
-            self.visit_expr(expr);
-            let value = self.pop();
-
-            match self.vars.get(id) {
-              None => panic!("variable {} is not defined", id),
-              Some(var) => {
-                if value.is_assignable(var) {
-                  self.vars.insert(id, value);
-                  return;
-                } else {
-                  panic!("type {} can't be assigned to {}", value.type_name(), var.type_name());
-                }
-              }
-            }
-          }
-
-          todo!("external modules");
+        if ids.len() != 1 {
+          todo!("array access")
         }
 
-        todo!("array access")
+        self.visit_expr(expr);
+        let value = self.pop();
+        let var = self.find_variable(&ids[0].0);
+
+        if value.is_assignable(var) {
+          *var = value;
+        } else {
+          panic!("type {} can't be assigned to {}", value.type_name(), var.type_name());
+        }
       }
       Stmt::Break => {
-        self.broken = true;
+        self.broken_loop = true;
       }
     }
   }
@@ -249,29 +358,26 @@ impl<'a> Visit<'a> for Interpreter<'a> {
           }
           // char
           // float
+          (BinOp::Plus, DynValue::Float(l), DynValue::Float(r)) => DynValue::Float(l + r),
+          (BinOp::Minus, DynValue::Float(l), DynValue::Float(r)) => DynValue::Float(l - r),
           (_, _, _) => todo!(),
         };
         self.stack.push(res);
       }
       Expr::VarAccess { ref ids } => {
-        if ids.len() == 1 {
-          if let EntityId::Internal { id } = ids[0].0 {
-            match self.vars.get(id) {
-              None => panic!("variable {} is not defined", id),
-              Some(var) => self.stack.push(var.clone()),
-            }
-            return;
-          }
-
-          todo!("external modules");
+        if ids.len() != 1 {
+          todo!("array access")
         }
 
-        todo!("array access")
+        let var_name = &ids[0].0;
+        let value = self.find_variable(var_name).clone();
+        self.stack.push(value);
       }
-      Expr::FnCall { .. } => {
-        todo!()
-
-        // if return value is void then panic!("procedures can't be called inside expressions"),
+      Expr::FnCall { ref id, ref args } => {
+        self.call_fn(id, args);
+        if self.stack.last().unwrap().is_void() {
+          panic!("procedures can't be called inside expressions")
+        }
       }
     }
   }
@@ -281,25 +387,26 @@ fn main() {
   let program = r#"
     program test;
 
-    var
-      x, y: integer;
+    function A(m, n: integer): integer;
+    begin
+                  if m = 0 then A := n + 1
+       else begin if n = 0 then A := A(m - 1, 1)
+                           else A := A(m - 1, A(m, n - 1)) end
+    end;
 
     begin
-      while x < 10 do
-      begin
-        writeln("x: ", x, ", y: ", y);
-        x := x + 1;
-      end;
+      assert_eq(A(3, 10), 8189);
+      writeln('Correct!');
     end.
   "#;
 
   let program = parse(program);
 
+  let now = std::time::Instant::now();
   let mut int = Interpreter::default();
   int.visit_module(&program);
 
-  println!("\nfinished.");
-  println!("{{ stack: {:?} }}", int.stack);
+  println!("\nfinished in {:.2} secs.", now.elapsed().as_secs_f32());
 }
 
 // what's next? hmmm
